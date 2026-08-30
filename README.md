@@ -11,10 +11,13 @@ for the P0/P1 Support slice:
 - the Support Web agent workspace lets an authenticated support agent list and
   open cases, reply publicly, add internal notes, assign work, and transition
   case state while Support Case retains the final authorization decision;
+- the Knowledge Author workspace lets an authenticated editor list and reload
+  drafts, create and revision-fence edits, and publish the exact reviewed
+  revision while Knowledge Base retains final authorization and storage;
 - Support Attachment stores the case association while Content Vault owns the
   bytes and Support Case owns case-resource authorization.
 
-It is **not a distributed Host executable**. The tests link the seven real
+It is **not a distributed Host executable**. The tests link the eight real
 business Plugin crates plus their real Content Vault provider and use the
 current Plugin Root resolver. Existing platform dependencies are represented by
 explicit test Host descriptors so the suite graph can be checked without
@@ -35,6 +38,7 @@ plugins/
   lenso.support-attachment.postgres/default.toml
   lenso.knowledge-base.postgres/default.toml
   lenso.help-center.web/default.toml
+  lenso.knowledge-author.web/default.toml
   lenso.support.web/default.toml
   lenso.web-ingress/default.toml
 ```
@@ -60,7 +64,7 @@ caller allowlists, disable/dependency behavior, and fixture boundary.
 ## Source build
 
 This acceptance crate is a standalone source repository and is intentionally
-`publish = false`. [`Cargo.toml`](Cargo.toml) pins the eight provider repositories
+`publish = false`. [`Cargo.toml`](Cargo.toml) pins the nine provider repositories
 to immutable revisions. `Cargo.lock` and the source-boundary check keep the
 suite on one runtime, core, and protocol baseline without sibling checkouts.
 
@@ -79,7 +83,7 @@ cargo tree --locked --duplicates
 
 The acceptance suite proves:
 
-- all eight real linked descriptors and native factories are present exactly
+- all nine real linked descriptors and native factories are present exactly
   once;
 - the complete Plugin Root resolves with one provider for every required
   Capability;
@@ -89,6 +93,10 @@ The acceptance suite proves:
   intake and email intake remain resolved;
 - Support Web fails resolution if either its Auth or Support Case provider is
   absent;
+- disabling Knowledge Author removes only the author surface while the Help
+  Center remains bound to the same Knowledge Base public-read provider;
+- Knowledge Author fails resolution if either its Auth or Knowledge Base
+  provider is absent;
 - disabling Knowledge Base or Support Attachment while Help Center remains
   fails resolution with the affected Plugin and Capability named;
 - disabling Content Vault while Support Attachment remains fails closed on
@@ -112,7 +120,7 @@ so it cannot be used as deployment proof.
 
 ## Deployment prerequisites
 
-Before staging a real Generation, the product Host must link the eight real
+Before staging a real Generation, the product Host must link the nine real
 Plugin factories plus production providers for Auth, Secrets, Access Control,
 Organization Membership, Search, Search Index, HTTP egress, and
 HTTP ingress/routing. It must close any privacy export and retention root Slots
@@ -150,8 +158,8 @@ must resolve to at least 32 bytes of high-entropy material. Existing-case replie
 use `support+SUP-N.<full-HMAC-token>@…`; an RFC `From` value plus an enumerable
 `SUP-N` is not authorization to append. Rotating the reply-token secret revokes
 all previously issued reply addresses. The Host must route Resend, Help Center,
-and Support Web HTTP endpoints without collapsing their distinct Plugin
-Instances.
+Support Web, and Knowledge Author HTTP endpoints without collapsing their
+distinct Plugin Instances.
 
 Help Center accepts up to 8 MiB of decoded attachment bytes in a JSON Base64
 field, which needs about 11.2 MiB on the wire before ordinary JSON overhead. The
@@ -184,6 +192,15 @@ audiences for every operation exposed by the surface:
 - `lenso.support-case@1:transition_case`
 - `lenso.support-case@1:update_case`
 
+For the author workspace, the assertion forwarded to Knowledge Base must carry
+the audiences for every authoring operation exposed by the surface:
+
+- `lenso.knowledge-base@1:create_draft`
+- `lenso.knowledge-base@1:get_draft`
+- `lenso.knowledge-base@1:list_articles`
+- `lenso.knowledge-base@1:publish_article`
+- `lenso.knowledge-base@1:update_draft`
+
 The first three authorize the Help Center HTTP operations. Attachment upload
 must carry both the HTTP upload audience and the downstream
 `upload_and_attach` audience on the same verified assertion; having only one of
@@ -193,8 +210,11 @@ The generic HTTP Endpoint descriptor exposes transport operations rather than
 route-level Auth audiences, so this harness does not derive or execute the Help
 Center verification chain. The Support Web repository separately proves with a
 real Kernel composition that it authenticates ingress evidence and forwards the
-resulting assertion to Support Case; this App repository verifies the immutable
-descriptor graph and matching policy fixture. Likewise, it verifies three
+resulting assertion to Support Case. The Knowledge Author repository separately
+proves its create, list, reload, update, publish, authorization, and conflict
+flow with a real Kernel composition. This App repository verifies the immutable
+descriptor graph, exact provider selection, caller policy, and Auth policy
+fixture; it does not fabricate a storage runtime. Likewise, it verifies three
 distinct Resend secret references, not the runtime secret bytes or HMAC
 behavior; production readiness must verify those external providers and secret
 values.

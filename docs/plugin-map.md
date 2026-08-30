@@ -13,8 +13,10 @@
 | `lenso.support-attachment.postgres/default` | `lenso.content-vault@1` | `lenso.content-vault/default` |
 | `lenso.support.web/default` | `lenso.auth@1` | production Auth (`fixture.support-platform/default` in composition tests) |
 | `lenso.support.web/default` | `lenso.support-case@1` | `lenso.support-case.postgres/default` |
+| `lenso.knowledge-author.web/default` | `lenso.auth@1` | production Auth (`fixture.support-platform/default` in composition tests) |
+| `lenso.knowledge-author.web/default` | `lenso.knowledge-base@1` `1.1.0` | `lenso.knowledge-base.postgres/default` |
 
-The Resend, Help Center, and Support Web Plugins each provide
+The Resend, Help Center, Support Web, and Knowledge Author Plugins each provide
 `lenso.http.endpoint@1` from the Host's many-valued `web` Slot. The production
 Host owns ingress attachment and routing; the App does not author an HTTP
 binding file.
@@ -28,12 +30,13 @@ binding file.
 | Support Case `intake_callers` | `lenso.support-email.resend/default`, `lenso.help-center.web/default` |
 | Support Case `resource_callers` | `lenso.support-attachment.postgres/default` |
 | Support Attachment `business_callers` | `lenso.help-center.web/default` |
+| Knowledge Base `business_callers` | `lenso.knowledge-author.web/default` |
 | Knowledge Base `public_read_grants` | `lenso.help-center.web/default` for `org_support_demo` |
 | Content Vault `maintenance_callers` | `content.maintenance/default` |
 
 `support.admin/default` remains a deployment placeholder for Customer Directory
-administration and Knowledge Base authoring; `privacy.export/default` and
-`privacy.retention/default` are placeholders for export and retention callers.
+administration; `privacy.export/default` and `privacy.retention/default` are
+placeholders for export and retention callers.
 A production Host must either link those exact Instances or change the typed
 allowlists to the Instances it actually owns.
 Customer Directory and Support Case already provide their real export-source
@@ -48,6 +51,10 @@ public only for the exact caller-and-organization grant above; authoring remains
 authenticated and separately permissioned. Support Web authenticates the
 ingress credential, attaches the resulting user assertion, and delegates all
 case visibility and mutation decisions to Support Case.
+Knowledge Author attaches an authenticated user assertion and delegates draft,
+revision, and publication decisions to Knowledge Base. Its business caller
+allowlist does not grant public reads; the Help Center's exact caller and
+organization grant remains an independent policy path.
 
 The test Host Auth policy contains the exact credential audiences
 `lenso.http.endpoint@1:help.center.web.support.create`,
@@ -59,6 +66,9 @@ The same fixture includes the eight downstream Support Case audiences used by
 Support Web: `add_message`, `assign_case`, `create_case`, `get_case`,
 `list_cases`, `list_messages`, `transition_case`, and `update_case` under
 `lenso.support-case@1`.
+The five Knowledge Author audiences are `create_draft`, `get_draft`,
+`list_articles`, `publish_article`, and `update_draft` under
+`lenso.knowledge-base@1`.
 The generic HTTP Endpoint descriptor exposes transport operations rather than
 route-level Auth audiences, so the acceptance fixture pins these exact policy
 values without claiming Auth issuance/verification or runtime secret material.
@@ -66,7 +76,7 @@ values without claiming Auth issuance/verification or runtime secret material.
 ## Test Host fixture boundary
 
 `tests/plugin_root.rs` derives `fixture.support-platform` only for Capabilities
-required by the eight real descriptors but not provided within this suite:
+required by the nine real descriptors but not provided within this suite:
 
 - `lenso.access-control@1`
 - `lenso.auth@1`
@@ -96,13 +106,20 @@ deployment must test that path end to end.
 
 The suite directly Git-links real Provider crates for Content Vault, Customer
 Directory, Resend, Support Case, Support Attachment, Knowledge Base, and Help
-Center, plus Support Web. Their macro-generated descriptors are obtained from
-`NativePluginRegistry::host_catalog`; the seven exported descriptor constants
+Center, Support Web, and Knowledge Author. Their macro-generated descriptors are
+obtained from `NativePluginRegistry::host_catalog`; the eight exported descriptor constants
 are compared byte-for-structure, while Content Vault is checked for its exact
 identity, root Slot, provided Capability, required Secrets role, and unique
 factory. Resolution does not replace any business Capability with a fixture.
-The Web Ingress fixture binds all three real HTTP Endpoint providers in
+The Web Ingress fixture binds all four real HTTP Endpoint providers in
 deterministic order.
+
+This App acceptance is descriptor and Plugin Root proof. In particular, the
+Knowledge Author deletion test keeps the Help Center bound to Knowledge Base
+`1.1.0` and checks its exact public-read grant without inventing articles or a
+database. The Knowledge Author repository owns the real Kernel tracer for
+create, list, reload, update, publish, authorization denial, and optimistic
+conflict behavior; PostgreSQL acceptance remains in the Knowledge Base owner.
 
 ## Disable and dependency matrix
 
@@ -113,6 +130,9 @@ deterministic order.
 | Disable Support Web | Resolves | Only the agent page and routes disappear; email and requester intake remain |
 | Keep Support Web without Auth | Fails closed on `lenso.auth@1` | The agent surface cannot authenticate |
 | Keep Support Web without Support Case | Fails closed on `lenso.support-case@1` | The agent surface cannot list or mutate cases |
+| Disable Knowledge Author | Resolves | Author routes disappear; drafts/publications stay owned by Knowledge Base and Help Center public reads remain |
+| Keep Knowledge Author without Auth | Fails closed on `lenso.auth@1` | The author surface cannot authenticate |
+| Keep Knowledge Author without Knowledge Base | Fails closed on `lenso.knowledge-base@1` `1.1.0` | The author surface cannot read or mutate drafts |
 | Disable Customer Directory while Resend remains | Fails closed on `lenso.customer-directory@1` | Email sender resolution is unavailable |
 | Disable Support Case while Support Attachment remains | Fails closed first on `lenso.support-case-authorization@1` | Attachment authorization is unavailable; Resend and Help also lose intake |
 | Disable Support Case after Help Center and Support Attachment, while Resend remains | Fails closed on `lenso.support-intake@1` | Email intake cannot open or append cases |
@@ -127,7 +147,7 @@ Host defaults, deleting `default.toml` alone restores the Host default. Use
 to make the Instance absent from the selected Plan.
 
 Disable dependents before providers: Resend before Customer Directory; Help
-Center before Knowledge Base; Help Center, then Support Attachment, then Content
+Center plus Knowledge Author before Knowledge Base; Help Center, then Support Attachment, then Content
 Vault; and Resend plus Help Center plus Support Web, then Support Attachment,
 before Support Case.
 Replacing a dependent with a new descriptor that drops the requirement is an

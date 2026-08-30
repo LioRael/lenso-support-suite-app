@@ -15,7 +15,7 @@ use lenso_app_plan::{
 use lenso_native_adapter::NativePluginRegistry;
 use serde_json::Value;
 
-const SUITE_PLUGIN_IDS: [&str; 7] = [
+const SUITE_PLUGIN_IDS: [&str; 8] = [
     "lenso.customer-directory.postgres",
     "lenso.support-email.resend",
     "lenso.support-case.postgres",
@@ -23,13 +23,15 @@ const SUITE_PLUGIN_IDS: [&str; 7] = [
     "lenso.knowledge-base.postgres",
     "lenso.help-center.web",
     "lenso.support.web",
+    "lenso.knowledge-author.web",
 ];
 const HOST_FIXTURE_PLUGIN_ID: &str = "fixture.support-platform";
 const CONTENT_VAULT_PLUGIN_ID: &str = "lenso.content-vault";
 const SUPPORT_WEB_PLUGIN_ID: &str = "lenso.support.web";
+const KNOWLEDGE_AUTHOR_PLUGIN_ID: &str = "lenso.knowledge-author.web";
 const WEB_INGRESS_PLUGIN_ID: &str = "lenso.web-ingress";
 const INSTANCE: &str = "default";
-const AUTH_CREDENTIAL_AUDIENCES: [&str; 12] = [
+const AUTH_CREDENTIAL_AUDIENCES: [&str; 17] = [
     "lenso.http.endpoint@1:help.center.web.support.create",
     "lenso.http.endpoint@1:help.center.web.support.status",
     "lenso.http.endpoint@1:help.center.web.support.attachment.upload",
@@ -42,6 +44,11 @@ const AUTH_CREDENTIAL_AUDIENCES: [&str; 12] = [
     "lenso.support-case@1:list_messages",
     "lenso.support-case@1:transition_case",
     "lenso.support-case@1:update_case",
+    "lenso.knowledge-base@1:create_draft",
+    "lenso.knowledge-base@1:get_draft",
+    "lenso.knowledge-base@1:list_articles",
+    "lenso.knowledge-base@1:publish_article",
+    "lenso.knowledge-base@1:update_draft",
 ];
 
 fn plugin_root_ids() -> impl Iterator<Item = &'static str> {
@@ -100,11 +107,7 @@ fn linked_suite_releases() -> Vec<HostPluginRelease> {
     releases.sort_by_key(|release| release.descriptor().plugin_id().to_owned());
 
     assert_eq!(releases.len(), linked_plugin_ids().count());
-    assert_eq!(
-        releases.len(),
-        8,
-        "the suite must link eight real providers"
-    );
+    assert_eq!(releases.len(), 9, "the suite must link nine real providers");
     for plugin_id in linked_plugin_ids() {
         let matches = releases
             .iter()
@@ -280,6 +283,53 @@ fn support_web_root() -> PluginRootSnapshot {
     )
 }
 
+fn knowledge_author_host(provide_auth: bool, provide_knowledge_base: bool) -> HostCatalog {
+    let author = linked_suite_releases()
+        .into_iter()
+        .find(|release| release.descriptor().plugin_id() == KNOWLEDGE_AUTHOR_PLUGIN_ID)
+        .expect("Knowledge Author release must be linked");
+    let fixture = [
+        (provide_auth, "lenso.auth@1", "1.0.0"),
+        (provide_knowledge_base, "lenso.knowledge-base@1", "1.1.0"),
+    ]
+    .into_iter()
+    .filter(|(enabled, _, _)| *enabled)
+    .fold(
+        PluginDescriptor::new(
+            "fixture.knowledge-author-platform",
+            "1.0.0",
+            "host-fixtures",
+        ),
+        |descriptor, (_, capability_id, descriptor_version)| {
+            descriptor.with_capability(CapabilityEndpointPlan::new(
+                capability_id,
+                descriptor_version,
+                ["host_fixture_only"],
+            ))
+        },
+    );
+
+    HostCatalog::new(
+        [HostSlot::many("web"), HostSlot::many("host-fixtures")],
+        [author, HostPluginRelease::new(fixture)],
+        [
+            HostDefaultPlugin::new(KNOWLEDGE_AUTHOR_PLUGIN_ID, INSTANCE).disableable(),
+            HostDefaultPlugin::new("fixture.knowledge-author-platform", INSTANCE),
+        ],
+    )
+}
+
+fn knowledge_author_root() -> PluginRootSnapshot {
+    PluginRootSnapshot::new(
+        [],
+        [
+            PluginRootInstance::new(KNOWLEDGE_AUTHOR_PLUGIN_ID, INSTANCE)
+                .with_configuration(configuration(KNOWLEDGE_AUTHOR_PLUGIN_ID)),
+        ],
+        [],
+    )
+}
+
 fn configuration(plugin_id: &str) -> Value {
     let path = repository_root()
         .join("plugins")
@@ -370,7 +420,7 @@ fn plugin_root_contains_only_one_typed_instance_file_per_configured_plugin() {
 }
 
 #[test]
-fn test_host_auth_policy_has_the_exact_requester_and_agent_calling_chain_audiences() {
+fn test_host_auth_policy_has_the_exact_requester_agent_and_author_audiences() {
     let path = repository_root()
         .join("tests")
         .join("fixtures")
@@ -495,6 +545,18 @@ fn full_support_graph_resolves_real_descriptors_and_unique_bindings() {
         binding_provider(plan, "lenso.support.web/default", "lenso.auth@1"),
         Some("fixture.support-platform/default")
     );
+    assert_eq!(
+        binding_provider(
+            plan,
+            "lenso.knowledge-author.web/default",
+            "lenso.knowledge-base@1",
+        ),
+        Some("lenso.knowledge-base.postgres/default")
+    );
+    assert_eq!(
+        binding_provider(plan, "lenso.knowledge-author.web/default", "lenso.auth@1",),
+        Some("fixture.support-platform/default")
+    );
 
     let customer_config = resolved_configuration(plan, "lenso.customer-directory.postgres");
     assert_eq!(customer_config["schema"], "support_customer");
@@ -601,7 +663,7 @@ fn full_support_graph_resolves_real_descriptors_and_unique_bindings() {
     );
     assert_eq!(
         knowledge_config["business_callers"],
-        serde_json::json!(["support.admin/default"])
+        serde_json::json!(["lenso.knowledge-author.web/default"])
     );
     assert_eq!(
         knowledge_config["public_read_grants"],
@@ -661,6 +723,7 @@ fn full_support_graph_resolves_real_descriptors_and_unique_bindings() {
         ingress_providers,
         BTreeSet::from([
             "lenso.help-center.web/default",
+            "lenso.knowledge-author.web/default",
             "lenso.support-email.resend/default",
             "lenso.support.web/default",
         ])
@@ -699,7 +762,11 @@ fn disabling_resend_preserves_the_help_center_path() {
     );
     assert_eq!(
         binding_providers(plan, "lenso.web-ingress/default", "lenso.http.endpoint@1"),
-        BTreeSet::from(["lenso.help-center.web/default", "lenso.support.web/default",])
+        BTreeSet::from([
+            "lenso.help-center.web/default",
+            "lenso.knowledge-author.web/default",
+            "lenso.support.web/default",
+        ])
     );
 }
 
@@ -721,6 +788,7 @@ fn disabling_help_center_preserves_the_email_path() {
     assert_eq!(
         binding_providers(plan, "lenso.web-ingress/default", "lenso.http.endpoint@1"),
         BTreeSet::from([
+            "lenso.knowledge-author.web/default",
             "lenso.support-email.resend/default",
             "lenso.support.web/default",
         ])
@@ -757,8 +825,82 @@ fn disabling_support_web_only_removes_the_agent_surface() {
         binding_providers(plan, "lenso.web-ingress/default", "lenso.http.endpoint@1"),
         BTreeSet::from([
             "lenso.help-center.web/default",
+            "lenso.knowledge-author.web/default",
             "lenso.support-email.resend/default",
         ])
+    );
+}
+
+#[test]
+fn disabling_knowledge_author_only_removes_the_author_surface() {
+    let resolved =
+        resolve_plugin_root(&support_host(), &plugin_root(&[KNOWLEDGE_AUTHOR_PLUGIN_ID]))
+            .expect("public Help Center reads must not depend on Knowledge Author");
+    let plan = resolved.plan();
+
+    assert!(!has_instance(plan, KNOWLEDGE_AUTHOR_PLUGIN_ID));
+    for plugin_id in
+        linked_plugin_ids().filter(|plugin_id| *plugin_id != KNOWLEDGE_AUTHOR_PLUGIN_ID)
+    {
+        assert!(has_instance(plan, plugin_id));
+    }
+    assert_eq!(
+        binding_provider(
+            plan,
+            "lenso.help-center.web/default",
+            "lenso.knowledge-base@1",
+        ),
+        Some("lenso.knowledge-base.postgres/default")
+    );
+    let knowledge_config = resolved_configuration(plan, "lenso.knowledge-base.postgres");
+    assert_eq!(
+        knowledge_config["public_read_grants"],
+        serde_json::json!([{
+            "caller_instance": "lenso.help-center.web/default",
+            "organization_id": "org_support_demo"
+        }])
+    );
+    assert_eq!(
+        binding_providers(plan, "lenso.web-ingress/default", "lenso.http.endpoint@1"),
+        BTreeSet::from([
+            "lenso.help-center.web/default",
+            "lenso.support-email.resend/default",
+            "lenso.support.web/default",
+        ])
+    );
+}
+
+#[test]
+fn knowledge_author_fails_closed_without_knowledge_base() {
+    let error = resolve_plugin_root(
+        &knowledge_author_host(true, false),
+        &knowledge_author_root(),
+    )
+    .expect_err("Knowledge Author requires exactly one Knowledge Base provider");
+    assert_eq!(
+        error,
+        PluginRootResolutionError::MissingCapability {
+            consumer: PluginInstanceId::new(KNOWLEDGE_AUTHOR_PLUGIN_ID, INSTANCE),
+            capability_id: "lenso.knowledge-base@1".to_owned(),
+            descriptor_version: "1.1.0".to_owned(),
+        }
+    );
+}
+
+#[test]
+fn knowledge_author_fails_closed_without_auth() {
+    let error = resolve_plugin_root(
+        &knowledge_author_host(false, true),
+        &knowledge_author_root(),
+    )
+    .expect_err("Knowledge Author requires exactly one Auth provider");
+    assert_eq!(
+        error,
+        PluginRootResolutionError::MissingCapability {
+            consumer: PluginInstanceId::new(KNOWLEDGE_AUTHOR_PLUGIN_ID, INSTANCE),
+            capability_id: "lenso.auth@1".to_owned(),
+            descriptor_version: "1.0.0".to_owned(),
+        }
     );
 }
 
@@ -853,7 +995,11 @@ fn dependent_plugin_groups_can_be_disabled_without_falling_back_to_host_defaults
             "lenso.support-email.resend",
             "lenso.customer-directory.postgres",
         ],
-        vec!["lenso.help-center.web", "lenso.knowledge-base.postgres"],
+        vec![
+            "lenso.help-center.web",
+            KNOWLEDGE_AUTHOR_PLUGIN_ID,
+            "lenso.knowledge-base.postgres",
+        ],
         vec![
             "lenso.help-center.web",
             "lenso.support-attachment.postgres",
@@ -880,7 +1026,10 @@ fn assert_help_center_dependency_failure(plugin_id: &str, capability_id: &str) {
         PluginRootResolutionError::MissingCapability {
             consumer: PluginInstanceId::new("lenso.help-center.web", INSTANCE),
             capability_id: capability_id.to_owned(),
-            descriptor_version: if capability_id == "lenso.support-attachment@1" {
+            descriptor_version: if matches!(
+                capability_id,
+                "lenso.support-attachment@1" | "lenso.knowledge-base@1"
+            ) {
                 "1.1.0".to_owned()
             } else {
                 "1.0.0".to_owned()
