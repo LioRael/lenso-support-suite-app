@@ -15,23 +15,33 @@ use lenso_app_plan::{
 use lenso_native_adapter::NativePluginRegistry;
 use serde_json::Value;
 
-const SUITE_PLUGIN_IDS: [&str; 6] = [
+const SUITE_PLUGIN_IDS: [&str; 7] = [
     "lenso.customer-directory.postgres",
     "lenso.support-email.resend",
     "lenso.support-case.postgres",
     "lenso.support-attachment.postgres",
     "lenso.knowledge-base.postgres",
     "lenso.help-center.web",
+    "lenso.support.web",
 ];
 const HOST_FIXTURE_PLUGIN_ID: &str = "fixture.support-platform";
 const CONTENT_VAULT_PLUGIN_ID: &str = "lenso.content-vault";
+const SUPPORT_WEB_PLUGIN_ID: &str = "lenso.support.web";
 const WEB_INGRESS_PLUGIN_ID: &str = "lenso.web-ingress";
 const INSTANCE: &str = "default";
-const AUTH_CREDENTIAL_AUDIENCES: [&str; 4] = [
+const AUTH_CREDENTIAL_AUDIENCES: [&str; 12] = [
     "lenso.http.endpoint@1:help.center.web.support.create",
     "lenso.http.endpoint@1:help.center.web.support.status",
     "lenso.http.endpoint@1:help.center.web.support.attachment.upload",
     "lenso.support-attachment@1:upload_and_attach",
+    "lenso.support-case@1:add_message",
+    "lenso.support-case@1:assign_case",
+    "lenso.support-case@1:create_case",
+    "lenso.support-case@1:get_case",
+    "lenso.support-case@1:list_cases",
+    "lenso.support-case@1:list_messages",
+    "lenso.support-case@1:transition_case",
+    "lenso.support-case@1:update_case",
 ];
 
 fn plugin_root_ids() -> impl Iterator<Item = &'static str> {
@@ -90,6 +100,11 @@ fn linked_suite_releases() -> Vec<HostPluginRelease> {
     releases.sort_by_key(|release| release.descriptor().plugin_id().to_owned());
 
     assert_eq!(releases.len(), linked_plugin_ids().count());
+    assert_eq!(
+        releases.len(),
+        8,
+        "the suite must link eight real providers"
+    );
     for plugin_id in linked_plugin_ids() {
         let matches = releases
             .iter()
@@ -224,6 +239,47 @@ fn support_host() -> HostCatalog {
     HostCatalog::new(host_slots(), releases, defaults)
 }
 
+fn support_web_host(provide_auth: bool, provide_support_case: bool) -> HostCatalog {
+    let support_web = linked_suite_releases()
+        .into_iter()
+        .find(|release| release.descriptor().plugin_id() == SUPPORT_WEB_PLUGIN_ID)
+        .expect("Support Web release must be linked");
+    let fixture = [
+        (provide_auth, "lenso.auth@1", "1.0.0"),
+        (provide_support_case, "lenso.support-case@1", "1.0.0"),
+    ]
+    .into_iter()
+    .filter(|(enabled, _, _)| *enabled)
+    .fold(
+        PluginDescriptor::new("fixture.support-web-platform", "1.0.0", "host-fixtures"),
+        |descriptor, (_, capability_id, descriptor_version)| {
+            descriptor.with_capability(CapabilityEndpointPlan::new(
+                capability_id,
+                descriptor_version,
+                ["host_fixture_only"],
+            ))
+        },
+    );
+
+    HostCatalog::new(
+        [HostSlot::many("web"), HostSlot::many("host-fixtures")],
+        [support_web, HostPluginRelease::new(fixture)],
+        [
+            HostDefaultPlugin::new(SUPPORT_WEB_PLUGIN_ID, INSTANCE).disableable(),
+            HostDefaultPlugin::new("fixture.support-web-platform", INSTANCE),
+        ],
+    )
+}
+
+fn support_web_root() -> PluginRootSnapshot {
+    PluginRootSnapshot::new(
+        [],
+        [PluginRootInstance::new(SUPPORT_WEB_PLUGIN_ID, INSTANCE)
+            .with_configuration(configuration(SUPPORT_WEB_PLUGIN_ID))],
+        [],
+    )
+}
+
 fn configuration(plugin_id: &str) -> Value {
     let path = repository_root()
         .join("plugins")
@@ -314,7 +370,7 @@ fn plugin_root_contains_only_one_typed_instance_file_per_configured_plugin() {
 }
 
 #[test]
-fn test_host_auth_policy_has_the_exact_help_center_calling_chain_audiences() {
+fn test_host_auth_policy_has_the_exact_requester_and_agent_calling_chain_audiences() {
     let path = repository_root()
         .join("tests")
         .join("fixtures")
@@ -431,6 +487,14 @@ fn full_support_graph_resolves_real_descriptors_and_unique_bindings() {
         ),
         Some("lenso.support-case.postgres/default")
     );
+    assert_eq!(
+        binding_provider(plan, "lenso.support.web/default", "lenso.support-case@1",),
+        Some("lenso.support-case.postgres/default")
+    );
+    assert_eq!(
+        binding_provider(plan, "lenso.support.web/default", "lenso.auth@1"),
+        Some("fixture.support-platform/default")
+    );
 
     let customer_config = resolved_configuration(plan, "lenso.customer-directory.postgres");
     assert_eq!(customer_config["schema"], "support_customer");
@@ -464,7 +528,7 @@ fn full_support_graph_resolves_real_descriptors_and_unique_bindings() {
     );
     assert_eq!(
         case_config["business_callers"],
-        serde_json::json!(["support.admin/default"])
+        serde_json::json!(["lenso.support.web/default"])
     );
     assert_eq!(
         case_config["intake_callers"],
@@ -597,7 +661,8 @@ fn full_support_graph_resolves_real_descriptors_and_unique_bindings() {
         ingress_providers,
         BTreeSet::from([
             "lenso.help-center.web/default",
-            "lenso.support-email.resend/default"
+            "lenso.support-email.resend/default",
+            "lenso.support.web/default",
         ])
     );
 
@@ -634,7 +699,7 @@ fn disabling_resend_preserves_the_help_center_path() {
     );
     assert_eq!(
         binding_providers(plan, "lenso.web-ingress/default", "lenso.http.endpoint@1"),
-        BTreeSet::from(["lenso.help-center.web/default"])
+        BTreeSet::from(["lenso.help-center.web/default", "lenso.support.web/default",])
     );
 }
 
@@ -655,7 +720,73 @@ fn disabling_help_center_preserves_the_email_path() {
     );
     assert_eq!(
         binding_providers(plan, "lenso.web-ingress/default", "lenso.http.endpoint@1"),
-        BTreeSet::from(["lenso.support-email.resend/default"])
+        BTreeSet::from([
+            "lenso.support-email.resend/default",
+            "lenso.support.web/default",
+        ])
+    );
+}
+
+#[test]
+fn disabling_support_web_only_removes_the_agent_surface() {
+    let resolved = resolve_plugin_root(&support_host(), &plugin_root(&[SUPPORT_WEB_PLUGIN_ID]))
+        .expect("requester intake and email intake must not depend on Support Web");
+    let plan = resolved.plan();
+
+    assert!(!has_instance(plan, SUPPORT_WEB_PLUGIN_ID));
+    for plugin_id in linked_plugin_ids().filter(|plugin_id| *plugin_id != SUPPORT_WEB_PLUGIN_ID) {
+        assert!(has_instance(plan, plugin_id));
+    }
+    assert_eq!(
+        binding_provider(
+            plan,
+            "lenso.help-center.web/default",
+            "lenso.support-intake@1",
+        ),
+        Some("lenso.support-case.postgres/default")
+    );
+    assert_eq!(
+        binding_provider(
+            plan,
+            "lenso.support-email.resend/default",
+            "lenso.support-intake@1",
+        ),
+        Some("lenso.support-case.postgres/default")
+    );
+    assert_eq!(
+        binding_providers(plan, "lenso.web-ingress/default", "lenso.http.endpoint@1"),
+        BTreeSet::from([
+            "lenso.help-center.web/default",
+            "lenso.support-email.resend/default",
+        ])
+    );
+}
+
+#[test]
+fn support_web_fails_closed_without_support_case() {
+    let error = resolve_plugin_root(&support_web_host(true, false), &support_web_root())
+        .expect_err("Support Web requires exactly one Support Case provider");
+    assert_eq!(
+        error,
+        PluginRootResolutionError::MissingCapability {
+            consumer: PluginInstanceId::new(SUPPORT_WEB_PLUGIN_ID, INSTANCE),
+            capability_id: "lenso.support-case@1".to_owned(),
+            descriptor_version: "1.0.0".to_owned(),
+        }
+    );
+}
+
+#[test]
+fn support_web_fails_closed_without_auth() {
+    let error = resolve_plugin_root(&support_web_host(false, true), &support_web_root())
+        .expect_err("Support Web requires exactly one Auth provider");
+    assert_eq!(
+        error,
+        PluginRootResolutionError::MissingCapability {
+            consumer: PluginInstanceId::new(SUPPORT_WEB_PLUGIN_ID, INSTANCE),
+            capability_id: "lenso.auth@1".to_owned(),
+            descriptor_version: "1.0.0".to_owned(),
+        }
     );
 }
 
@@ -700,6 +831,7 @@ fn disabling_support_case_blocks_resend_after_other_dependents_are_disabled() {
         &plugin_root(&[
             "lenso.support-case.postgres",
             "lenso.help-center.web",
+            SUPPORT_WEB_PLUGIN_ID,
             "lenso.support-attachment.postgres",
         ]),
     )
@@ -730,6 +862,7 @@ fn dependent_plugin_groups_can_be_disabled_without_falling_back_to_host_defaults
         vec![
             "lenso.support-email.resend",
             "lenso.help-center.web",
+            SUPPORT_WEB_PLUGIN_ID,
             "lenso.support-attachment.postgres",
             "lenso.support-case.postgres",
         ],
@@ -813,6 +946,7 @@ fn host_fixture_supplies_only_platform_dependencies_missing_from_the_suite() {
         "lenso.customer-directory@1",
         "lenso.knowledge-base@1",
         "lenso.support-attachment@1",
+        "lenso.support-case@1",
         "lenso.support-case-authorization@1",
         "lenso.support-intake@1",
     ] {

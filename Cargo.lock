@@ -1637,8 +1637,25 @@ dependencies = [
  "lenso-support-attachment-postgres-plugin",
  "lenso-support-case-postgres-plugin",
  "lenso-support-email-resend",
+ "lenso-support-web-plugin",
  "serde_json",
  "toml",
+]
+
+[[package]]
+name = "lenso-support-web-plugin"
+version = "0.1.0"
+source = "git+https://github.com/LioRael/lenso-support-web-plugin?rev=73bc1244dccfc36cc2afec6442926d447aefcafa#73bc1244dccfc36cc2afec6442926d447aefcafa"
+dependencies = [
+ "futures",
+ "lenso",
+ "lenso-auth-sdk",
+ "lenso-capability-auth",
+ "lenso-capability-http-endpoint",
+ "lenso-capability-support-case",
+ "lenso-kernel",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

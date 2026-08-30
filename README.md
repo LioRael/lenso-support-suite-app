@@ -8,15 +8,17 @@ for the P0/P1 Support slice:
 - the Help Center searches published Knowledge Base articles and gives an
   authenticated requester access to case submission, status, messages, and
   text attachment upload;
+- the Support Web agent workspace lets an authenticated support agent list and
+  open cases, reply publicly, add internal notes, assign work, and transition
+  case state while Support Case retains the final authorization decision;
 - Support Attachment stores the case association while Content Vault owns the
   bytes and Support Case owns case-resource authorization.
 
-It is **not a distributed Host executable**. The tests link the six real P0/P1
-Plugin crates plus their real Content Vault provider and use the current Plugin
-Root resolver. Existing
-platform dependencies are represented by explicit test Host descriptors so the
-suite graph can be checked without pretending those providers were delivered
-here.
+It is **not a distributed Host executable**. The tests link the seven real
+business Plugin crates plus their real Content Vault provider and use the
+current Plugin Root resolver. Existing platform dependencies are represented by
+explicit test Host descriptors so the suite graph can be checked without
+pretending those providers were delivered here.
 
 ## App-owned Plugin Root
 
@@ -33,6 +35,7 @@ plugins/
   lenso.support-attachment.postgres/default.toml
   lenso.knowledge-base.postgres/default.toml
   lenso.help-center.web/default.toml
+  lenso.support.web/default.toml
   lenso.web-ingress/default.toml
 ```
 
@@ -57,7 +60,7 @@ caller allowlists, disable/dependency behavior, and fixture boundary.
 ## Source build
 
 This acceptance crate is a standalone source repository and is intentionally
-`publish = false`. [`Cargo.toml`](Cargo.toml) pins the seven provider repositories
+`publish = false`. [`Cargo.toml`](Cargo.toml) pins the eight provider repositories
 to immutable revisions. `Cargo.lock` and the source-boundary check keep the
 suite on one runtime, core, and protocol baseline without sibling checkouts.
 
@@ -76,12 +79,16 @@ cargo tree --locked --duplicates
 
 The acceptance suite proves:
 
-- all seven real linked descriptors and native factories are present exactly
+- all eight real linked descriptors and native factories are present exactly
   once;
 - the complete Plugin Root resolves with one provider for every required
   Capability;
 - disabling Resend preserves the Help Center route, and disabling Help Center
   preserves the email route;
+- disabling Support Web removes only the agent surface while both requester
+  intake and email intake remain resolved;
+- Support Web fails resolution if either its Auth or Support Case provider is
+  absent;
 - disabling Knowledge Base or Support Attachment while Help Center remains
   fails resolution with the affected Plugin and Capability named;
 - disabling Content Vault while Support Attachment remains fails closed on
@@ -105,7 +112,7 @@ so it cannot be used as deployment proof.
 
 ## Deployment prerequisites
 
-Before staging a real Generation, the product Host must link the seven real
+Before staging a real Generation, the product Host must link the eight real
 Plugin factories plus production providers for Auth, Secrets, Access Control,
 Organization Membership, Search, Search Index, HTTP egress, and
 HTTP ingress/routing. It must close any privacy export and retention root Slots
@@ -142,8 +149,9 @@ token key into three distinct configured secret references. The reply-token key
 must resolve to at least 32 bytes of high-entropy material. Existing-case replies
 use `support+SUP-N.<full-HMAC-token>@…`; an RFC `From` value plus an enumerable
 `SUP-N` is not authorization to append. Rotating the reply-token secret revokes
-all previously issued reply addresses. The Host must also route both Resend and
-Help Center HTTP endpoints without collapsing their distinct Plugin Instances.
+all previously issued reply addresses. The Host must route Resend, Help Center,
+and Support Web HTTP endpoints without collapsing their distinct Plugin
+Instances.
 
 Help Center accepts up to 8 MiB of decoded attachment bytes in a JSON Base64
 field, which needs about 11.2 MiB on the wire before ordinary JSON overhead. The
@@ -164,6 +172,18 @@ audiences for the authenticated requester flow:
 - `lenso.http.endpoint@1:help.center.web.support.attachment.upload`
 - `lenso.support-attachment@1:upload_and_attach`
 
+For the agent workspace, the assertion forwarded to Support Case must carry the
+audiences for every operation exposed by the surface:
+
+- `lenso.support-case@1:add_message`
+- `lenso.support-case@1:assign_case`
+- `lenso.support-case@1:create_case`
+- `lenso.support-case@1:get_case`
+- `lenso.support-case@1:list_cases`
+- `lenso.support-case@1:list_messages`
+- `lenso.support-case@1:transition_case`
+- `lenso.support-case@1:update_case`
+
 The first three authorize the Help Center HTTP operations. Attachment upload
 must carry both the HTTP upload audience and the downstream
 `upload_and_attach` audience on the same verified assertion; having only one of
@@ -171,9 +191,13 @@ them fails closed. [`tests/fixtures/auth-credential-policy.toml`](tests/fixtures
 records this as test Host policy, not Plugin Root or an Auth runtime delivery.
 The generic HTTP Endpoint descriptor exposes transport operations rather than
 route-level Auth audiences, so this harness does not derive or execute the Help
-Center verification chain. Likewise, it verifies three distinct Resend secret
-references, not the runtime secret bytes or HMAC behavior; production readiness
-must verify those external providers and secret values.
+Center verification chain. The Support Web repository separately proves with a
+real Kernel composition that it authenticates ingress evidence and forwards the
+resulting assertion to Support Case; this App repository verifies the immutable
+descriptor graph and matching policy fixture. Likewise, it verifies three
+distinct Resend secret references, not the runtime secret bytes or HMAC
+behavior; production readiness must verify those external providers and secret
+values.
 
 This source repository does not publish crates, change DNS, create secrets,
 migrate databases, or activate a live Host.
