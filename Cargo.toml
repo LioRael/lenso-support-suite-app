@@ -1,0 +1,36 @@
+[package]
+name = "lenso-support-suite-app"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.94"
+license = "MIT"
+publish = false
+description = "Reference Plugin Root and linked-Host acceptance composition for the Lenso Support suite."
+repository = "https://github.com/LioRael/lenso-support-suite-app"
+
+[dependencies]
+lenso-content-vault-plugin = { version = "0.1.0", git = "https://github.com/LioRael/lenso-content-vault-plugin", rev = "3b41ada36275321f6a68e323f3e8c3da330bb285" }
+lenso-customer-directory-postgres-plugin = { version = "0.1.0", git = "https://github.com/LioRael/lenso-customer-directory-plugin", rev = "4383b3ce85fdbfaf62974ba64beb203ea9ccaf42" }
+lenso-help-center-web = { version = "0.1.0", git = "https://github.com/LioRael/lenso-help-center-web-plugin", rev = "509c4ee5f666a9302b140f09d2498943144ac58d" }
+lenso-knowledge-base-postgres-plugin = { version = "0.1.0", git = "https://github.com/LioRael/lenso-knowledge-base-plugin", rev = "a086ddce0386e4a6892169595c9e87f6c6a0fb16" }
+lenso-support-attachment-postgres-plugin = { version = "0.1.0", git = "https://github.com/LioRael/lenso-support-attachment-plugin", rev = "8537ce59088ff5c168299a8ce1ae366f6a85b0ab" }
+lenso-support-case-postgres-plugin = { version = "0.1.0", git = "https://github.com/LioRael/lenso-support-case-plugin", rev = "8d8a173e699ff7cae06fecd719e3f1ee3c1834c0" }
+lenso-support-email-resend = { version = "0.1.0", git = "https://github.com/LioRael/lenso-support-email-resend-plugin", rev = "7b6f3f09e1785675fb6093ea63f8e3b98352e03a" }
+
+[dev-dependencies]
+lenso-app-plan = { version = "0.3.0", git = "https://github.com/LioRael/lenso", rev = "8599db7e4a214ed92f32089f81d14c833d4becf6" }
+lenso-native-adapter = { version = "0.3.0", git = "https://github.com/LioRael/lenso-runtime-rust", rev = "89815107385475c8b5be378bdcf5e21aa74e02f0" }
+serde_json = "1.0"
+toml = "0.9"
+
+[lints.rust]
+unsafe_code = "forbid"
+missing_debug_implementations = "warn"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+must_use_candidate = "allow"
+too_many_lines = "allow"

@@ -1,0 +1,2 @@
+# 8 MiB of decoded attachment bytes expand under JSON Base64 encoding.
+max_request_body_bytes = 12582912

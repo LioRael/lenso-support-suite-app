@@ -1,0 +1,9 @@
+schema = "support_customer"
+database_url_secret = "support/postgres/database-url"
+auth_issuer = "support-auth"
+auth_assertion_public_key = "11qYAYKxCrfVS_7TyWQHOg7hcvPapiMlrwIaaPcHURo"
+resolve_callers = ["lenso.support-email.resend/default"]
+admin_callers = ["support.admin/default"]
+export_callers = ["privacy.export/default"]
+retention_callers = ["privacy.retention/default"]
+max_export_bytes = 8388608

@@ -1,0 +1,9 @@
+schema = "support_knowledge_base"
+database_url_secret = "support/postgres/database-url"
+auth_issuer = "support-auth"
+auth_assertion_public_key = "11qYAYKxCrfVS_7TyWQHOg7hcvPapiMlrwIaaPcHURo"
+business_callers = ["support.admin/default"]
+
+[[public_read_grants]]
+caller_instance = "lenso.help-center.web/default"
+organization_id = "org_support_demo"

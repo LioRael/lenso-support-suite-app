@@ -1,0 +1,5 @@
+schema = "support_attachment"
+database_url_secret = "support/postgres/database-url"
+auth_issuer = "support-auth"
+auth_assertion_public_key = "11qYAYKxCrfVS_7TyWQHOg7hcvPapiMlrwIaaPcHURo"
+business_callers = ["lenso.help-center.web/default"]

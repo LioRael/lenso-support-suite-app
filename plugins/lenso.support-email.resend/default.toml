@@ -1,0 +1,6 @@
+organization_id = "org_support_demo"
+webhook_secret_reference = "support/resend/webhook-signing-secret"
+api_key_secret_reference = "support/resend/api-key"
+reply_token_secret_reference = "support/resend/reply-token"
+recipient_addresses = ["support@example.com"]
+max_webhook_age_seconds = 300

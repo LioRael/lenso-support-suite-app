@@ -1,0 +1,9 @@
+database_url_secret = "support/content-vault/database-url"
+s3_bucket = "support-content-vault"
+s3_region = "us-east-1"
+s3_access_key_id_secret = "support/content-vault/s3-access-key-id"
+s3_secret_access_key_secret = "support/content-vault/s3-secret-access-key"
+quarantine_grace_seconds = 900
+sweep_batch_limit = 100
+stream_channel_capacity = 4
+maintenance_callers = ["content.maintenance/default"]
