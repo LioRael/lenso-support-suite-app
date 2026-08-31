@@ -1,6 +1,6 @@
 //! Linkage anchor for the reference Lenso Support App Host.
 //!
-//! This crate does not execute a Host. It makes the seven real business Plugin
+//! This crate does not execute a Host. It makes the eight real business Plugin
 //! factories and descriptors, plus their real Content Vault provider, reachable
 //! to composition acceptance tests. A production Host must own the actual Host
 //! Catalog, lifecycle, and routing.
@@ -11,11 +11,12 @@ use lenso_knowledge_base_postgres_plugin as _;
 use lenso_support_attachment_postgres_plugin as _;
 use lenso_support_case_postgres_plugin as _;
 
-/// The seven real business Plugin Descriptors linked into the reference Host acceptance binary.
-pub fn suite_descriptor_json() -> [&'static str; 7] {
+/// The eight real business Plugin Descriptors linked into the reference Host acceptance binary.
+pub fn suite_descriptor_json() -> [&'static str; 8] {
     lenso_support_email_resend::link();
     lenso_help_center_web::link();
     lenso_support_web_plugin::link();
+    lenso_knowledge_author_web_plugin::link();
 
     [
         lenso_customer_directory_postgres_plugin::PLUGIN_DESCRIPTOR_JSON,
@@ -25,10 +26,11 @@ pub fn suite_descriptor_json() -> [&'static str; 7] {
         lenso_knowledge_base_postgres_plugin::PLUGIN_DESCRIPTOR_JSON,
         lenso_help_center_web::PLUGIN_DESCRIPTOR_JSON,
         lenso_support_web_plugin::PLUGIN_DESCRIPTOR_JSON,
+        lenso_knowledge_author_web_plugin::PLUGIN_DESCRIPTOR_JSON,
     ]
 }
 
-/// Forces all eight native Plugin crates to remain linked in a Host executable.
+/// Forces all nine native Plugin crates to remain linked in a Host executable.
 pub fn link() {
     let _ = content_vault::PLUGIN_ID;
     let _ = suite_descriptor_json();

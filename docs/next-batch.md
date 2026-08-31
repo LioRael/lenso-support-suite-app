@@ -4,6 +4,15 @@ The next batch starts from support work that a real team still cannot complete
 with the current App. Priority is based on the user job and the deletion test,
 not on adding new framework machinery.
 
+Delivery state (2026-08-31): P0 Support Agent Workspace is implemented and
+composed from Support Web revision
+`73bc1244dccfc36cc2afec6442926d447aefcafa`. The core P1 Knowledge Author flow
+is also implemented: Knowledge Author
+`734bb769ce4dba02d57d9ad538e3e83afb5a2a74`, Knowledge Base `1.1.0`
+`6b69e310820c0d5c00ec187339165bf7727c65ea`, and aligned Help Center
+`091f6140d005c2ccd2a5ff158e4304385d576898`. The Suite composition pins these
+immutable revisions; SLA observation and outbound email remain follow-ons.
+
 ## P0: Support Agent Workspace
 
 - User job: an authenticated support agent lists cases, opens one, sends a
@@ -35,6 +44,10 @@ not on adding new framework machinery.
 - Acceptance: create, reload/list, resume with CAS, publish, then observe the
   article through Help Center; unauthorized access is 403 and stale revision is
   409.
+- Evidence is owner-split rather than a fabricated live Host: the Author Plugin
+  runs the authenticated Kernel workflow and conflict tracer, Knowledge Base
+  runs real PostgreSQL publication/re-read acceptance, and this Suite proves
+  that Help Center public reads and author writes select that exact Provider.
 
 ## P1 follow-ons
 

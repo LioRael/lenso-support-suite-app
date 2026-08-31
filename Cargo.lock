@@ -1201,7 +1201,7 @@ dependencies = [
 [[package]]
 name = "lenso-capability-knowledge-base"
 version = "0.1.0"
-source = "git+https://github.com/LioRael/lenso-knowledge-base-plugin?rev=a086ddce0386e4a6892169595c9e87f6c6a0fb16#a086ddce0386e4a6892169595c9e87f6c6a0fb16"
+source = "git+https://github.com/LioRael/lenso-knowledge-base-plugin?rev=6b69e310820c0d5c00ec187339165bf7727c65ea#6b69e310820c0d5c00ec187339165bf7727c65ea"
 dependencies = [
  "futures",
  "lenso-contract-authoring",
@@ -1445,7 +1445,7 @@ dependencies = [
 [[package]]
 name = "lenso-help-center-web"
 version = "0.1.0"
-source = "git+https://github.com/LioRael/lenso-help-center-web-plugin?rev=509c4ee5f666a9302b140f09d2498943144ac58d#509c4ee5f666a9302b140f09d2498943144ac58d"
+source = "git+https://github.com/LioRael/lenso-help-center-web-plugin?rev=091f6140d005c2ccd2a5ff158e4304385d576898#091f6140d005c2ccd2a5ff158e4304385d576898"
 dependencies = [
  "lenso",
  "lenso-auth-sdk",
@@ -1470,9 +1470,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "lenso-knowledge-author-web-plugin"
+version = "0.1.0"
+source = "git+https://github.com/LioRael/lenso-knowledge-author-web-plugin?rev=734bb769ce4dba02d57d9ad538e3e83afb5a2a74#734bb769ce4dba02d57d9ad538e3e83afb5a2a74"
+dependencies = [
+ "lenso",
+ "lenso-auth-sdk",
+ "lenso-capability-auth",
+ "lenso-capability-http-endpoint",
+ "lenso-capability-knowledge-base",
+ "lenso-kernel",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "lenso-knowledge-base-postgres-plugin"
 version = "0.1.0"
-source = "git+https://github.com/LioRael/lenso-knowledge-base-plugin?rev=a086ddce0386e4a6892169595c9e87f6c6a0fb16#a086ddce0386e4a6892169595c9e87f6c6a0fb16"
+source = "git+https://github.com/LioRael/lenso-knowledge-base-plugin?rev=6b69e310820c0d5c00ec187339165bf7727c65ea#6b69e310820c0d5c00ec187339165bf7727c65ea"
 dependencies = [
  "lenso",
  "lenso-auth-sdk",
@@ -1632,6 +1647,7 @@ dependencies = [
  "lenso-content-vault-plugin",
  "lenso-customer-directory-postgres-plugin",
  "lenso-help-center-web",
+ "lenso-knowledge-author-web-plugin",
  "lenso-knowledge-base-postgres-plugin",
  "lenso-native-adapter",
  "lenso-support-attachment-postgres-plugin",
