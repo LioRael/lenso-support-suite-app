@@ -16,6 +16,7 @@ lenso-knowledge-base-postgres-plugin = { version = "0.1.0", git = "https://githu
 lenso-support-attachment-postgres-plugin = { version = "0.1.0", git = "https://github.com/LioRael/lenso-support-attachment-plugin", rev = "8537ce59088ff5c168299a8ce1ae366f6a85b0ab" }
 lenso-support-case-postgres-plugin = { version = "0.1.0", git = "https://github.com/LioRael/lenso-support-case-plugin", rev = "8d8a173e699ff7cae06fecd719e3f1ee3c1834c0" }
 lenso-support-email-resend = { version = "0.1.0", git = "https://github.com/LioRael/lenso-support-email-resend-plugin", rev = "7b6f3f09e1785675fb6093ea63f8e3b98352e03a" }
+lenso-support-web-plugin = { version = "0.1.0", git = "https://github.com/LioRael/lenso-support-web-plugin", rev = "73bc1244dccfc36cc2afec6442926d447aefcafa" }
 
 [dev-dependencies]
 lenso-app-plan = { version = "0.3.0", git = "https://github.com/LioRael/lenso", rev = "8599db7e4a214ed92f32089f81d14c833d4becf6" }
