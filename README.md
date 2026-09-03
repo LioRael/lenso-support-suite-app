@@ -64,9 +64,9 @@ caller allowlists, disable/dependency behavior, and fixture boundary.
 ## Source build
 
 This acceptance crate is a standalone source repository and is intentionally
-`publish = false`. [`Cargo.toml`](Cargo.toml) pins the nine provider repositories
-to immutable revisions. `Cargo.lock` and the source-boundary check keep the
-suite on one runtime, core, and protocol baseline without sibling checkouts.
+`publish = false`. [`Cargo.toml`](Cargo.toml) selects exact released provider,
+runtime, core, and protocol versions. `Cargo.lock` records the resolved registry
+cohort without requiring sibling checkouts.
 
 ## Verification
 
@@ -78,7 +78,6 @@ cargo check --locked --workspace --all-targets
 cargo test --locked --workspace --all-targets
 cargo clippy --locked --workspace --all-targets -- -D warnings
 cargo tree --locked --duplicates
-./scripts/check-source-boundary.sh
 ```
 
 The acceptance suite proves:
